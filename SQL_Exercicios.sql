@@ -861,5 +861,85 @@ SELECT
 		ORDER BY
 			rn.dia
 
-		
-	
+--Levante o fabricante da primeira ocorrência de cada dia de 2018. 
+--Caso o fabricante seja o mesmo do dia anterior, deverá mostrar o fabricante da próxima ocorrência
+SELECT 
+		ROW_NUMBER()
+			OVER(
+				PARTITION BY 
+					CONVERT(DATE, oc.ocorrencia_dia)
+				ORDER BY
+					CONVERT(DATE, oc.ocorrencia_dia),
+					CONVERT(DATETIME, oc.ocorrencia_horario)
+			) AS row#,
+
+		ROW_NUMBER()
+			OVER(
+				PARTITION BY 
+					ae.aeronave_fabricante,
+					CONVERT(DATE, oc.ocorrencia_dia)
+				ORDER BY
+					CONVERT(DATE, oc.ocorrencia_dia),
+					CONVERT(DATETIME, oc.ocorrencia_horario)
+
+			) AS row_F#,
+		ae.aeronave_fabricante,
+		oc.*
+	INTO 
+		temp#		
+	FROM 
+		ocorrencia oc
+	INNER JOIN 
+		aeronave ae
+		ON oc.codigo_ocorrencia = ae.codigo_ocorrencia
+	WHERE 
+		YEAR(CONVERT(DATE, oc.ocorrencia_dia)) = 2018
+
+SELECT 
+		IIF(
+			(te.aeronave_fabricante <> LAG(te.aeronave_fabricante,1,0) OVER (ORDER BY CONVERT(DATE, te.ocorrencia_dia), CONVERT(DATETIME, te.ocorrencia_horario))),
+			te.aeronave_fabricante,
+			'') AS fab,
+		te.*
+	INTO 
+		temp_if#
+	FROM 
+		temp# te 
+	ORDER BY 
+		CONVERT(DATE, te.ocorrencia_dia), 
+		CONVERT(DATETIME, te.ocorrencia_horario)
+
+SELECT 
+		FIRST_VALUE(te.fab) OVER (PARTITION BY CONVERT(DATE, te.ocorrencia_dia) ORDER BY CONVERT(DATE, te.ocorrencia_dia), CONVERT(DATETIME, te.ocorrencia_horario)) fab_p,
+		CONVERT(DATE, te.ocorrencia_dia) AS dia, 
+		CONVERT(DATETIME, te.ocorrencia_horario) AS hora
+	INTO
+		temp_fab#
+	FROM 
+		temp_if# te 
+	WHERE 
+		te.fab <> ''
+	ORDER BY
+		CONVERT(DATE, te.ocorrencia_dia), 
+		CONVERT(DATETIME, te.ocorrencia_horario)
+
+SELECT 
+		IIF(
+			te.fab_p <> LAG(te.fab_p ,1,0) OVER (ORDER BY te.dia, te.hora),
+			te.fab_p,
+			'') AS fab,
+			te.dia,
+			te.hora
+	INTO
+		temp_final#
+	FROM 
+		temp_fab# te
+
+SELECT * 
+	FROM 
+		temp_final# te 
+	WHERE 
+		te.fab <> ''
+
+
+
