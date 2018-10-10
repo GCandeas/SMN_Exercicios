@@ -758,3 +758,108 @@ WITH cte_tabela AS (
 
 
 
+--Crie um Ranking dos UF's por quantidade de Fatalidades
+SELECT
+		ROW_NUMBER()
+			OVER (
+				ORDER BY
+					SUM(ae.total_fatalidades) DESC
+				) AS posicao,
+		oc.ocorrencia_uf,
+		SUM(ae.total_fatalidades) AS fatalidades
+	FROM ocorrencia oc
+	INNER JOIN aeronave ae
+		ON oc.codigo_ocorrencia = ae.codigo_ocorrencia
+	GROUP BY oc.ocorrencia_uf
+
+--Crie 3 Rankings de UF por quantidade de Ocorrências (descritos no card)
+SELECT
+		ROW_NUMBER()
+			OVER (
+				ORDER BY
+					SUM(ae.total_fatalidades) DESC
+				) AS posicao,
+		oc.ocorrencia_uf,
+		SUM(ae.total_fatalidades) AS fatalidades
+	FROM ocorrencia oc
+	INNER JOIN aeronave ae
+		ON oc.codigo_ocorrencia = ae.codigo_ocorrencia
+	GROUP BY oc.ocorrencia_uf
+
+SELECT 
+		DENSE_RANK()
+			OVER (
+				ORDER BY
+					SUM(ae.total_fatalidades) DESC
+				) AS row#,
+		oc.ocorrencia_uf,
+		SUM(ae.total_fatalidades) AS fatalidades
+	FROM ocorrencia oc
+	INNER JOIN aeronave ae
+		ON oc.codigo_ocorrencia = ae.codigo_ocorrencia
+	GROUP BY oc.ocorrencia_uf
+
+SELECT 
+		RANK()
+			OVER (
+				ORDER BY
+					SUM(ae.total_fatalidades) DESC
+				) AS row#,
+		oc.ocorrencia_uf,
+		SUM(ae.total_fatalidades) AS fatalidades
+	FROM ocorrencia oc
+	INNER JOIN aeronave ae
+		ON oc.codigo_ocorrencia = ae.codigo_ocorrencia
+	GROUP BY oc.ocorrencia_uf
+
+--Levante a segunda e penúltima ocorrência de cada semana de 2018, informar data, cidade + uf e nível de dano da aeronave
+SELECT 
+		rn.semana,
+		rn.dia,
+		rn.ocorrencia_cidade,
+		rn.ocorrencia_uf,
+		rn.aeronave_nivel_dano
+	FROM (
+		SELECT
+				ROW_NUMBER()
+					OVER (
+						PARTITION BY
+							DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia)))
+						ORDER BY
+							CONVERT(DATE, oc.ocorrencia_dia),
+							CONVERT(DATETIME, oc.ocorrencia_horario)
+						) AS posicao,
+				ROW_NUMBER()
+					OVER (
+						PARTITION BY
+							DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia)))
+						ORDER BY
+							CONVERT(DATE, oc.ocorrencia_dia) DESC,
+							CONVERT(DATETIME, oc.ocorrencia_horario) DESC
+						) AS posicao_desc,
+				CONVERT(DATE, oc.ocorrencia_dia) AS dia,
+				oc.ocorrencia_cidade,
+				oc.ocorrencia_uf,
+				ae.aeronave_nivel_dano,
+				DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia))) AS semana
+			FROM ocorrencia oc
+			INNER JOIN aeronave ae
+				ON oc.codigo_ocorrencia = ae.codigo_ocorrencia
+			WHERE 
+				YEAR(CONVERT(DATE, oc.ocorrencia_dia)) = 2018 
+			GROUP BY 
+				oc.ocorrencia_uf, 
+				CONVERT(DATE, oc.ocorrencia_dia),
+				CONVERT(DATETIME, oc.ocorrencia_horario),
+				oc.ocorrencia_cidade,
+				oc.ocorrencia_uf,
+				ae.aeronave_nivel_dano
+		)rn
+		WHERE
+			rn.posicao = 2
+			OR rn.posicao_desc = 2
+		ORDER BY
+			rn.dia
+
+		
+	
