@@ -813,53 +813,73 @@ SELECT
 	GROUP BY oc.ocorrencia_uf
 
 --Levante a segunda e penúltima ocorrência de cada semana de 2018, informar data, cidade + uf e nível de dano da aeronave
+SELECT
+	ROW_NUMBER() OVER (PARTITION BY (DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia)))) ORDER BY CONVERT(DATE, oc.ocorrencia_dia), CONVERT(DATETIME, oc.ocorrencia_horario)) AS posicao,
+	CONVERT(DATE, oc.ocorrencia_dia) AS dia,
+	oc.ocorrencia_cidade,
+	oc.ocorrencia_uf,
+	ae.aeronave_nivel_dano,
+	oc.codigo_ocorrencia,
+	DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia))) AS semana
+INTO
+	#seg
+FROM ocorrencia oc
+INNER JOIN 
+	aeronave ae
+	ON oc.codigo_ocorrencia = ae.codigo_ocorrencia
+WHERE 
+	YEAR(CONVERT(DATE, oc.ocorrencia_dia)) = 2018
+	
+
+SELECT
+	ROW_NUMBER() OVER (PARTITION BY (DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia)))) ORDER BY CONVERT(DATE, oc.ocorrencia_dia) DESC, CONVERT(DATETIME, oc.ocorrencia_horario) DESC)  AS posicao,
+	CONVERT(DATE, oc.ocorrencia_dia) AS dia,
+	oc.ocorrencia_cidade,
+	oc.ocorrencia_uf,
+	ae.aeronave_nivel_dano,
+	oc.codigo_ocorrencia,
+	DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia))) AS semana
+INTO
+	#pen
+FROM ocorrencia oc
+INNER JOIN 
+	aeronave ae
+	ON oc.codigo_ocorrencia = ae.codigo_ocorrencia
+WHERE 
+	YEAR(CONVERT(DATE, oc.ocorrencia_dia)) = 2018
+
 SELECT 
-		rn.semana,
-		rn.dia,
-		rn.ocorrencia_cidade,
-		rn.ocorrencia_uf,
-		rn.aeronave_nivel_dano
-	FROM (
-		SELECT
-				ROW_NUMBER()
-					OVER (
-						PARTITION BY
-							DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia)))
-						ORDER BY
-							CONVERT(DATE, oc.ocorrencia_dia),
-							CONVERT(DATETIME, oc.ocorrencia_horario)
-						) AS posicao,
-				ROW_NUMBER()
-					OVER (
-						PARTITION BY
-							DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia)))
-						ORDER BY
-							CONVERT(DATE, oc.ocorrencia_dia) DESC,
-							CONVERT(DATETIME, oc.ocorrencia_horario) DESC
-						) AS posicao_desc,
-				CONVERT(DATE, oc.ocorrencia_dia) AS dia,
-				oc.ocorrencia_cidade,
-				oc.ocorrencia_uf,
-				ae.aeronave_nivel_dano,
-				DATEPART(WEEK,(CONVERT(DATE, oc.ocorrencia_dia))) AS semana
-			FROM ocorrencia oc
-			INNER JOIN aeronave ae
-				ON oc.codigo_ocorrencia = ae.codigo_ocorrencia
-			WHERE 
-				YEAR(CONVERT(DATE, oc.ocorrencia_dia)) = 2018 
-			GROUP BY 
-				oc.ocorrencia_uf, 
-				CONVERT(DATE, oc.ocorrencia_dia),
-				CONVERT(DATETIME, oc.ocorrencia_horario),
-				oc.ocorrencia_cidade,
-				oc.ocorrencia_uf,
-				ae.aeronave_nivel_dano
-		)rn
-		WHERE
-			rn.posicao = 2
-			OR rn.posicao_desc = 2
-		ORDER BY
-			rn.dia
+		se.semana,
+		se.dia,
+		se.ocorrencia_cidade,
+		se.ocorrencia_uf,
+		se.aeronave_nivel_dano
+	INTO
+		#seg_p2
+	FROM 
+		#seg se
+	WHERE
+		se.posicao = 2
+
+SELECT 
+		pe.semana,
+		pe.dia,
+		pe.ocorrencia_cidade,
+		pe.ocorrencia_uf,
+		pe.aeronave_nivel_dano
+	INTO
+		#pen_p2
+	FROM 
+		#pen pe
+	WHERE
+		pe.posicao = 2
+
+SELECT *
+	FROM #seg_p2 se
+	INNER JOIN	#pen_p2 pe
+		ON se.semana = pe.semana
+	ORDER BY se.dia
+
 
 --Levante o fabricante da primeira ocorrência de cada dia de 2018. 
 --Caso o fabricante seja o mesmo do dia anterior, deverá mostrar o fabricante da próxima ocorrência
@@ -899,7 +919,7 @@ SELECT
 		IIF(
 			(te.aeronave_fabricante <> LAG(te.aeronave_fabricante,1,0) OVER (ORDER BY CONVERT(DATE, te.ocorrencia_dia), CONVERT(DATETIME, te.ocorrencia_horario))),
 			te.aeronave_fabricante,
-			'') AS fab,
+			NULL) AS fab,
 		te.*
 	INTO 
 		temp_if#
@@ -918,7 +938,7 @@ SELECT
 	FROM 
 		temp_if# te 
 	WHERE 
-		te.fab <> ''
+		te.fab <> NULL
 	ORDER BY
 		CONVERT(DATE, te.ocorrencia_dia), 
 		CONVERT(DATETIME, te.ocorrencia_horario)
@@ -927,7 +947,7 @@ SELECT
 		IIF(
 			te.fab_p <> LAG(te.fab_p ,1,0) OVER (ORDER BY te.dia, te.hora),
 			te.fab_p,
-			'') AS fab,
+			NULL) AS fab,
 			te.dia,
 			te.hora
 	INTO
@@ -939,7 +959,7 @@ SELECT *
 	FROM 
 		temp_final# te 
 	WHERE 
-		te.fab <> ''
+		te.fab <> NULL
 
 
 
