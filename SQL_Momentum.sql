@@ -1,58 +1,59 @@
 --[10/10/2018] Eduardo: Vendas a partir de 2010
 --EQL, CLIENTE, status, data ven, data confi
+--sem restrição de contratos
 SELECT
 		(CONVERT(VARCHAR(50),lo.Num_Empr) + '-' + lo.Cod_Quadra + '-' + CONVERT(VARCHAR(50),lo.Cod_Lot)) AS EQL,
+		co.Num_CliCPFCNPJ,
 		cl.Nom_Cli,
-		cl.Num_CliCPFCNPJ,
 		st.Nom_StatusContVend,
 		co.Dat_Venda,
 		co.Dat_ConfirmaVenda
 		
-	FROM 
-		dbo.GKSLT_Contratos co
-	INNER JOIN 
-		dbo.GKSLT_Clientes cl
-		ON co.Num_CliCPFCNPJ = cl.Num_CliCPFCNPJ
+	FROM
+		GKSLT_Contratos co
 	INNER JOIN
-		dbo.GKSLT_Lotes lo
+		GKSLT_Lotes lo
 		ON co.Num_ChavLot = lo.Num_ChavLot
 	INNER JOIN
-		dbo.GKSLT_StatusContVend st
+		GKSLT_Clientes cl
+		ON co.Num_CliCPFCNPJ = cl.Num_CliCPFCNPJ
+	INNER JOIN
+		GKSLT_StatusContVend st
 		ON co.Cod_StatusContVend = st.Cod_StatusContVend
-
 	WHERE
-		YEAR(co.Dat_Venda) >= 2010
-		AND co.Cod_StatusContVend > 1
+		co.Dat_Venda >= '2010-01-01'
+		AND(co.Cod_StatusContVend = 2 OR co.Cod_StatusContVend = 3 OR co.Cod_StatusContVend = 4)
 
 --[10/10/2018] Eduardo: Forma de Pagamento
 --EQL, CLIENTE, status, data ven, data confi, forma pag
+--Desenvolver levantamento de contratos vendidos em 2018 e sua forma de pagamento.
+--sem restrição de contratos
 SELECT
 		(CONVERT(VARCHAR(50),lo.Num_Empr) + '-' + lo.Cod_Quadra + '-' + CONVERT(VARCHAR(50),lo.Cod_Lot)) AS EQL,
+		co.Num_CliCPFCNPJ,
 		cl.Nom_Cli,
-		cl.Num_CliCPFCNPJ,
 		st.Nom_StatusContVend,
-		fo.Nom_ForPag,
 		co.Dat_Venda,
-		co.Dat_ConfirmaVenda
+		co.Dat_ConfirmaVenda,
+		fo.Nom_ForPag
 		
-	FROM 
-		dbo.GKSLT_Contratos co
-	INNER JOIN 
-		dbo.GKSLT_Clientes cl
-		ON co.Num_CliCPFCNPJ = cl.Num_CliCPFCNPJ
+	FROM
+		GKSLT_Contratos co
 	INNER JOIN
-		dbo.GKSLT_Lotes lo
+		GKSLT_Lotes lo
 		ON co.Num_ChavLot = lo.Num_ChavLot
 	INNER JOIN
-		dbo.GKSLT_StatusContVend st
+		GKSLT_Clientes cl
+		ON co.Num_CliCPFCNPJ = cl.Num_CliCPFCNPJ
+	INNER JOIN
+		GKSLT_StatusContVend st
 		ON co.Cod_StatusContVend = st.Cod_StatusContVend
 	INNER JOIN
 		dbo.GKSLT_FormaPagamento fo
 		ON co.Cod_ForPag = fo.Cod_ForPag
-		
 	WHERE
-		YEAR(co.Dat_Venda) = 2008
-		AND co.Cod_StatusContVend > 1
+		(co.Dat_Venda >= '2008-01-01' AND co.Dat_Venda <= '2008-31-12')
+		AND(co.Cod_StatusContVend = 2 OR co.Cod_StatusContVend = 3 OR co.Cod_StatusContVend = 4)
 
 --[10/10/2018] Eduardo: Lotes doados a partir de 2005 por empreendimento
 --EQL, CLIENTE, status, data ven, data confi, forma pag, doacao
@@ -91,9 +92,7 @@ SELECT
 	WHERE
 		YEAR(co.Dat_Venda) = 2008
 		AND co.Cod_StatusContVend = 2
-		AND co.Cod_SisVen = 2
-		OR co.Cod_SisVen = 7
-		OR co.Cod_SisVen = 8
+		AND (co.Cod_SisVen = 2 OR co.Cod_SisVen = 7 OR co.Cod_SisVen = 8)
 
 --[10/10/2018] Eduardo: Retornar todos os clientes ativos que compraram lotes a partir de 2008
 --Caso o cliente possuía outro lote ativo antes da compra em 2008, retornar os lotes em outra coluna.
@@ -172,7 +171,7 @@ SELECT
 		tp.Cod_TipParc,
 		co.Num_Contr,
 		pa.Num_Parc,
-		bp.Ind_BaixaEfet,
+		pa.Cod_TipBaiPar,
 		pa.Dat_Pagto,
 		co.Dat_Venda
 	INTO
@@ -191,11 +190,9 @@ SELECT
 	INNER JOIN
 		GKSLT_TiposParcelas tp
 		ON pa.Cod_TipParc = tp.Cod_TipParc
-	INNER JOIN
-		GKSLT_TiposBaixaParcela bp
-		ON pa.Cod_TipBaiPar = bp.Cod_TipBaiPar
 	WHERE
 		co.Dat_Venda >= '2008-01-01'
+		AND (co.Cod_StatusContVend = 2 OR co.Cod_StatusContVend = 3 OR co.Cod_StatusContVend = 4)
 
 --prieira parcela terra paga
 SELECT 
@@ -207,26 +204,27 @@ SELECT
 	WHERE
 		da.Num_Parc = 1 
 		AND da.Cod_TipParc = 3 
-		AND da.Ind_BaixaEfet = 'S'
+		AND da.Cod_TipBaiPar <= 5
 
 --unificando as tabelas
-SELECT 
-		da.EQL,
-		da.Nom_Cli,
-		da.Num_CliCPFCNPJ,
-		da.Cod_TipParc,
-		da.Num_Contr,
-		da.Dat_Pagto,
-		da.Dat_Venda
+SELECT *
+		--da.EQL,
+		--da.Nom_Cli,
+		--da.Num_CliCPFCNPJ,
+		--da.Cod_TipParc,
+		--da.Num_Contr,
+		--da.Dat_Pagto,
+		--da.Dat_Venda,
+		--da.Cod_TipBaiPar
 	FROM
 		dados# da
 	INNER JOIN
 		contratos_pg# cp
 		ON da.Num_Contr = cp.Num_Contr
 	WHERE
-		da.Ind_BaixaEfet  = 'N'
+		da.Cod_TipBaiPar  IS NULL
 		AND (da.Cod_TipParc = 97 OR da.Cod_TipParc = 99)
-
+		
 DROP TABLE dados#
 DROP TABLE contratos_pg#
 
@@ -241,8 +239,7 @@ SELECT
 		tp.Cod_TipParc,
 		co.Num_Contr,
 		pa.Num_Parc,
-		bp.Ind_BaixaEfet,
-		pa.Dat_Pagto,
+		pa.Cod_TipBaiPar,
 		pa.Dat_Venc,
 		co.Dat_Venda
 	INTO
@@ -261,9 +258,7 @@ SELECT
 	INNER JOIN
 		GKSLT_TiposParcelas tp
 		ON pa.Cod_TipParc = tp.Cod_TipParc
-	INNER JOIN
-		GKSLT_TiposBaixaParcela bp
-		ON pa.Cod_TipBaiPar = bp.Cod_TipBaiPar
+
 	WHERE
 		co.Dat_Venda >= '2010-01-01'
 
@@ -273,7 +268,7 @@ SELECT *
 		dados# da
 	WHERE
 		da.Cod_TipParc = 97
-		AND da.Ind_BaixaEfet = 'N'
+		AND da.Cod_TipBaiPar IS NULL
 		AND DATEDIFF(DAY,da.Dat_Venc,GETDATE()) > 30
 
 DROP TABLE dados#
